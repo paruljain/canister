@@ -5,7 +5,7 @@ A micro standalone webserver designed to create RESTful APIs.
 
 Setup
 -----
-Enable your Windows system to run PowerShell scripts by running the following command on a privileged command prompt:
+Requires PowerShell 3.0 or better, and .Net 4.5 or better. Enable your Windows system to run PowerShell scripts by running the following command on a privileged command prompt:
 
     powershell set-executionpolicy unrestricted
     
