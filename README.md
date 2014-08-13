@@ -15,6 +15,6 @@ Optionally permit inbound port TCP 8000 on Windows Firewall to use the web serve
 
 Now run the sample.ps1 script. From any web browser on the same computer browse to the following:
 
-        http://localhost:8000/hello
-        http://localhost:8000
+    http://localhost:8000/hello
+    http://localhost:8000
 
