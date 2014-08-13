@@ -3,6 +3,8 @@ Powershell Webserver
 
 A micro standalone webserver designed to create RESTful APIs.
 
+Setup
+-----
 Enable your Windows system to run PowerShell scripts by running the following command on a privileged command prompt:
 
     powershell set-executionpolicy unrestricted
@@ -13,7 +15,9 @@ Allow using a TCP/IP port for HTTP on your system by running the following comma
     
 Optionally permit inbound port TCP 8000 on Windows Firewall to use the web server from other computers.
 
-Now run the sample.ps1 script. From any web browser on the same computer browse to the following:
+Test Drive
+----------
+Run the sample.ps1 script. From any web browser on the same computer browse to the following:
 
     http://localhost:8000/hello
     http://localhost:8000
