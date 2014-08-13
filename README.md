@@ -1,7 +1,7 @@
 Powershell Webserver
 ====================
 
-A micro standalone webserver designed to create RESTful APIs.
+A micro, around 100 lines, of pure PowerShell standalone webserver designed to create RESTful APIs. Embed it in your application to enable rich web based user interface. Does not need IIS.
 
 Setup
 -----
