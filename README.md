@@ -36,15 +36,15 @@ A Handler is a PowerShell function or named script block that will service certa
 
 Routes
 ------
-A route is the text after the server name and optional port number, and before any query string in a URL. For example in the URL http://myserver.mydomain.com:8000/images/getimage?name=cat.jpg, the route is /images/getimage. Each Canister handler is wired to a specific route. The route specification is a .Net regular Expression. Thus '^/' will match all routes. If multiple handlers match the route specification, only the first will be executed. Thus the order of handlers is significant. The best practice is to start with handlers with most specific route, and the last one should handle '^/'.
+A route is the text after the server name and optional port number, and before any query string in web browser address. For example in the address http://myserver.mydomain.com:8000/images/getimage?name=cat.jpg, the route is /images/getimage. Each Canister Handler is wired to a specific route. The route specification is a .Net regular Expression. Thus '^/' will match all routes. If multiple Handlers match the route specification, only the first will be executed. Thus the order of Handlers is significant. The best practice is to start with Handlers with most specific Route, with the last one handling '^/'.
 
 Methods
 -------
-Each Canister handler must be wired to one HTTP Method in addition to a Route. The default method is GET.
+Each Canister handler must be wired to one HTTP Method in addition to a Route. The default method is GET. Other HTTP methods include POST, PUT, DELETE and HEAD.
 
 Passing Data in and Out
 -----------------------
-Each Handler receives two parameters. At position 1 is [System.Net.HttpListenerRequest](http://msdn.microsoft.com/en-us/library/system.net.httplistenerrequest(v=vs.110).aspx) and at position 2 is the [System.Net.HttpListenerResponse](http://msdn.microsoft.com/en-us/library/system.net.httplistenerresponse(v=vs.110).aspx) object. The Request object can be used to extract the request and data sent from teh front end, and the Response object is used to send back the requested data to the frint end. Canister extends these objects with the following conveniences:
+Each Handler receives two parameters. At position 1 is [System.Net.HttpListenerRequest](http://msdn.microsoft.com/en-us/library/system.net.httplistenerrequest(v=vs.110).aspx) and at position 2 is the [System.Net.HttpListenerResponse](http://msdn.microsoft.com/en-us/library/system.net.httplistenerresponse(v=vs.110).aspx) object. The Request object can be used to extract the request and any data sent by the front end, and the Response object is used to send back any requested data to the front end. Canister extends these objects with the following conveniences:
 
 ### $request.GetBody()
 Gets the body of a POST or PUT request from the front end as a string. The handler must further process this string based on $request.Headers['ContentType'] value. For example when { $request.Headers['ContentType'] -match 'application/json' } then ConvertTo-JSON cmdlet should be used on the string.
