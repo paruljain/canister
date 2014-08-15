@@ -13,7 +13,7 @@ function FileServer ($request, $response) {
 }
 
 function HelloWorld ($request, $response) {
-    $response.SendText('Hello World')
+    $response.SendText('Hello World', 'text/plain')
 }
 
 $handlers += @{route='^/hello$'; handler='HelloWorld'; method='GET'}
