@@ -47,6 +47,7 @@ Update-TypeData -TypeName System.Net.HttpListenerResponse -MemberType ScriptMeth
 function Canister-Start {
     param(
         [Parameter(Mandatory=$true)][Array]$handlers,
+        [Parameter(Mandatory=$false)][switch]$https,
         [Parameter(Mandatory=$false)][uint32]$port = 8000,
         [Parameter(Mandatory=$false)][ValidateSet('Console','File','Off')][string]$log='Console',
         [Parameter(Mandatory=$false)][string]$logFile = "$scriptPath\WebServer.log"
@@ -59,16 +60,14 @@ function Canister-Start {
     $strPort = $port.ToString()
 
     $listener = New-Object System.Net.HttpListener
-    $listener.Prefixes.Add("http://+:$strPort/") # Must exactly match the netsh command issued part of install procedure
+    if ($https) { $prefix = "https://+:$strPort/" } else { $prefix = "http://+:$strPort/" }
+    $listener.Prefixes.Add($prefix) # Must exactly match the netsh command issued part of install procedure
     try { $listener.Start() }
     catch {
-        if ($_.Exception.Message -match 'Access is denied') {
-            write-host 'First please run the following command from an administratively privileged command prompt:'
-            write-host ''
-            write-host ("netssh http add urlacl url=http://+$strPort/" + ' user=' + $env:USERDOMAIN +
-                '\' + $env:USERNAME )
-            write-host ''
-            write-host 'Also you will need to open the port in Windows firewall if you want to allow connections from other computers to Canister'
+        if ($_.Exception.Message -match 'Access is denied' -or 
+                $_.Exception.Message -match 'conflicts with an existing registration') {
+            write-host 'Port conflict or access denied'
+            write-host 'Please run setup.ps1 from an administratively privileged command prompt'
             return
         }
         else { throw $_ }
