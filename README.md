@@ -57,4 +57,4 @@ Sends a file to the front end. $filename should be the complete path to the file
 
 Canister is Single Threaded
 ---------------------------
-While a Handler is doing it's work, front ends cannot request more work from Canister; they have to wait in line. Thus Handlers must be designed to finish as quickly as possible. Long running tasks should be created as an asynchronous job by the Handler. The synchronous design of Canister allows the fastest response with least overhead.
+While a Handler is doing it's work, other requests from the same or other front ends must wait in line. Thus Handlers must be designed to finish as quickly as possible. Long running tasks should be created as an asynchronous task (PowerShell Job or [powershell].Invoke) by the Handler. The synchronous design of Canister allows the fastest response with least overhead, while letting Handlers create asynchronous tasks as needed.
