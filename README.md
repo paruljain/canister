@@ -9,11 +9,7 @@ Requires PowerShell 3.0 or better, and .Net 4.5 or better. Enable your Windows s
 
     powershell set-executionpolicy unrestricted
     
-Allow using a TCP/IP port for HTTP on your system by running the following command on a privileged command prompt:
-
-    netssh http add urlacl url=http://+:8000/ user=myComputername\myUsername
-    
-Optionally permit inbound port TCP 8000 on Windows Firewall to use the web server from other computers.
+Run setup.ps1, also from privileged command prompt, to configure Windows URL reservation, generate and install a self-signed certificate, attach the certificate to the port and configure Windows firewall.
 
 Test Drive
 ----------
