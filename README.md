@@ -1,7 +1,7 @@
 Canister
 ========
 
-A micro, around 100 lines, of pure PowerShell standalone webserver designed to create RESTful APIs. Embed it in your application to create responsive AJAX and Single Page Applications. Also serves files like a regular web server to bootstrap the application. Logs access in Normal log Format. Does not need IIS.
+A micro web server written in pure PowerShell designed to create RESTful APIs. Give your PowerShell scripts a rich web based interface, or create full featured enterprise apps based on powerful PowerShell and expansive .Net libraries included in all Windows by default. Logs access in Normal log Format. Does not need IIS.
 
 Setup
 -----
