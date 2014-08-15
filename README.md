@@ -1,7 +1,14 @@
 Canister
 ========
 
-A micro web server written in pure PowerShell designed to create RESTful APIs. Give your PowerShell scripts a rich web based interface, or create full featured enterprise apps based on powerful PowerShell and expansive .Net libraries included in all Windows by default. Supports HTTPS. Logs access in Normal log format. Does not need IIS.
+A micro web server written in pure PowerShell designed to create RESTful APIs. Give your PowerShell scripts a rich web interface, or create full featured enterprise apps. Perfect for home automation projects in place of native apps.
+
+* Extremely light weight
+* HTTPS supported (self-signed certificate generator and installer included)
+* No runtime dependencies except Powershell 3.0 and .Net 4.5
+* IIS not needed
+* Will run on any Windows desktop or server
+* Access to over 6,000 .Net classes, dozens of PowerShell modules created by product companies such as Vmware, database storage, as well as COM servers
 
 Setup
 -----
