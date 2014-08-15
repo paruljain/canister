@@ -45,17 +45,17 @@ Methods
 -------
 Each Canister handler must be wired to one HTTP Method in addition to a Route. The default method is GET. Other HTTP methods include POST, PUT, DELETE and HEAD.
 
-Passing Data in and Out
+Passing Data In and Out
 -----------------------
 Each Handler receives two parameters. At position 1 is [System.Net.HttpListenerRequest](http://msdn.microsoft.com/en-us/library/system.net.httplistenerrequest(v=vs.110).aspx) and at position 2 is the [System.Net.HttpListenerResponse](http://msdn.microsoft.com/en-us/library/system.net.httplistenerresponse(v=vs.110).aspx) object. The Request object can be used to extract the request and any data sent by the front end, and the Response object is used to send back any requested data to the front end. Canister extends these objects with the following conveniences:
 
-### $request.GetBody()
+    $request.GetBody()
 Gets the body of a POST or PUT request from the front end as a string. The handler must further process this string based on $request.Headers['ContentType'] value. For example when { $request.Headers['ContentType'] -match 'application/json' } then ConvertTo-JSON cmdlet should be used on the string.
 
-### $response.SendText($text, $contentType)
+    $response.SendText($text, $contentType)
 Send the text to the front end and set the HTTP Content-Type header to $contentType. The default value for $contentType is application/json.
 
-### $response.SendFile($filename)
+    $response.SendFile($filename)
 Sends a file to the front end. $filename should be the complete path to the file such as c:\users\me\desktop\app.html.
 
 Canister is Single Threaded
