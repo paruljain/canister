@@ -1,3 +1,10 @@
+<#
+    Canister
+    A micro web server to create modern, responsive web apps and RESTful APIs
+    (c) Parul Jain paruljain@hotmail.com
+    MIT License
+#>
+
 # The following .Net 4.5 library is required to find correct mime type for file extensions
 try { [void][System.Reflection.Assembly]::LoadWithPartialName("System.Web") }
 catch { throw 'Unable to start the web server. .Net 4.5 is required' }
@@ -5,17 +12,8 @@ catch { throw 'Unable to start the web server. .Net 4.5 is required' }
 $scriptPath = Split-Path -parent $MyInvocation.MyCommand.Definition
 
 Update-TypeData -TypeName System.Net.HttpListenerResponse -MemberType ScriptMethod -MemberName SendText -Value {
-    param([string]$text)
-    $this.ContentType = 'text/plain'
-    $buffer = [System.Text.Encoding]::UTF8.GetBytes($text)
-    $this.ContentLength64 = $buffer.length
-    $this.OutputStream.Write($buffer, 0, $buffer.length)
-    $this.OutputStream.Close()
-}
-
-Update-TypeData -TypeName System.Net.HttpListenerResponse -MemberType ScriptMethod -MemberName SendJson -Value {
-    param([string]$text)
-    $this.ContentType = 'application/json'
+    param([string]$text, [string]$contentType = 'application/json')
+    $this.ContentType = $contentType
     $buffer = [System.Text.Encoding]::UTF8.GetBytes($text)
     $this.ContentLength64 = $buffer.length
     $this.OutputStream.Write($buffer, 0, $buffer.length)
@@ -54,9 +52,7 @@ function Canister-Start {
         [Parameter(Mandatory=$false)][string]$logFile = "$scriptPath\WebServer.log"
     )
     write-host ''
-    write-host 'Canister v0.1'
-    write-host '(c) Parul Jain paruljain@hotmail.com'
-    write-host 'MIT License'
+    write-host 'Canister v0.2'
     write-host ''
 
     if ($handlers.Count -eq 0) { throw 'WebServer failed to start: No handlers added' }
@@ -87,7 +83,8 @@ function Canister-Start {
             $response = $context.Response
             foreach ($handler in $handlers) {
                 if (!$handler.method) { $handler['method'] = 'GET' }
-                if ($request.HttpMethod -match $handler.method -and $request.RawUrl -match $handler.route) {
+                $route = $request.RawUrl.split('?')[0]
+                if ($request.HttpMethod.ToLower() -eq $handler.method.toLower() -and $route -match $handler.route) {
                     $handlerFound = $true
                     & $handler.handler $request $response
                     break
