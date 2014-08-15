@@ -1,7 +1,7 @@
 Canister
 ========
 
-A micro web server written in pure PowerShell designed to create RESTful APIs. Give your PowerShell scripts a rich web interface, or create full featured enterprise apps. Perfect for home automation projects in place of native apps.
+A micro web server written in pure PowerShell designed to create RESTful APIs. Give your PowerShell scripts a rich web interface, or create full featured enterprise apps.
 
 * Extremely light weight
 * HTTPS supported (self-signed certificate generator and installer included)
