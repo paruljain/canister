@@ -55,3 +55,6 @@ Send the text to the front end and set the HTTP Content-Type header to $contentT
 ### $response.SendFile($filename)
 Sends a file to the front end. $filename should be the complete path to the file such as c:\users\me\desktop\app.html.
 
+Canister is Single Threaded
+---------------------------
+While a Handler is doing it's work, front ends cannot request more work from Canister; they have to wait in line. Thus Handlers must be designed to finish as quickly as possible. Long running tasks should be created as an asynchronous job by the Handler. The synchronous design of Canister allows the fastest response with least overhead.
