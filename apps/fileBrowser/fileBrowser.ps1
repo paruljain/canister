@@ -1,6 +1,6 @@
 $scriptPath = Split-Path -parent $MyInvocation.MyCommand.Definition
 
-. "$scriptPath..\..\canister.ps1"
+. $scriptPath\..\..\canister.ps1
 
 $handlers = @()
 
