@@ -93,3 +93,5 @@ function Canister-Setup {
     "Executing: netsh advfirewall firewall add rule name=Canister Port $portStr dir=in action=allow protocol=TCP localport=$portStr"
     & netsh advfirewall firewall add rule name="Canister Port $portStr" dir=in action=allow protocol=TCP localport=$portStr
 }
+
+Canister-Setup
