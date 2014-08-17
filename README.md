@@ -27,7 +27,7 @@ Creating Apps with Canister
 ---------------------------
 Web applications are made up of two parts: the server side, or back end, and the user side, or the front end. The front end runs within the browser and its main job is to provide a graphical user interface. The front end commnunicates with the back end to retrieve files and data. The front end application itself is contained within certain files, such as index.html, so the back end has to serve at least those files to the browser to start, or boot, the front end. Once the front end starts it can ask for files such as HTML documents, or data using AJAX architecture. Modern front ends try to minimize asking for files; they paint relevant views only by exchanging data with the back end. These applications are sometimes known as Single Page Applications or SPA. Because files are not transmitted everytime user makes a selection or enters data, such applications are very responsive.
 
-Canister provides the back end for web applications. It can serve files like a traditional web server, but it's main goal is to service AJAX data requests.
+Canister provides the back end for web applications. It can serve files like a traditional web server, but it's main goal is to eficiently service AJAX data requests for modern single page web applications.
 
 A Canister application is a regular PowerShell script with functions or named script blocks. Some or all of these functions can be wired into Canister such that these can be called by the front end.
 
