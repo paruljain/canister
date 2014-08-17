@@ -8,7 +8,6 @@ A micro web server written in pure PowerShell designed to create RESTful APIs. G
 * No runtime dependencies except Powershell 3.0 and .Net 4.5
 * IIS not needed
 * Will run on any Windows desktop or server
-* Access to over 6,000 .Net classes, dozens of PowerShell modules created by product companies such as Vmware, database storage, as well as COM servers
 
 Setup
 -----
@@ -16,13 +15,12 @@ Requires PowerShell 3.0 or better, and .Net 4.5 or better. Enable your Windows s
 
     powershell set-executionpolicy unrestricted
     
-Run setup.ps1, also from privileged command prompt, to configure Windows URL reservation, generate and install a self-signed certificate, attach the certificate to the port and configure Windows firewall.
+**Run setup.ps1**, also from privileged command prompt, to configure Windows URL reservation, generate and install a self-signed certificate, attach the certificate to the port and configure Windows firewall.
 
 Test Drive
 ----------
-Run the sample.ps1 script. From any web browser on the same computer browse to the following:
+Run the apps/fileBrowser/fileBrowser.ps1 script. From a web browser on the same computer browse to the following:
 
-    http://localhost:8000/hello
     http://localhost:8000
 
 Creating Apps with Canister
