@@ -9,8 +9,6 @@
 try { [void][System.Reflection.Assembly]::LoadWithPartialName("System.Web") }
 catch { throw 'Unable to start the web server. .Net 4.5 is required' }
 
-$scriptPath = Split-Path -parent $MyInvocation.MyCommand.Definition
-
 Update-TypeData -TypeName System.Net.HttpListenerResponse -MemberType ScriptMethod -MemberName SendText -Value {
     param([string]$text, [string]$contentType = 'application/json')
     $this.ContentType = $contentType
@@ -50,7 +48,7 @@ function Canister-Start {
         [Parameter(Mandatory=$false)][switch]$https,
         [Parameter(Mandatory=$false)][uint32]$port = 8000,
         [Parameter(Mandatory=$false)][ValidateSet('Console','File','Off')][string]$log='Console',
-        [Parameter(Mandatory=$false)][string]$logFile = "$scriptPath\WebServer.log"
+        [Parameter(Mandatory=$false)][string]$logFile = ".\Canister.log"
     )
     write-host ''
     write-host 'Canister v0.2'
