@@ -7,7 +7,7 @@ A micro web server written in pure PowerShell designed to create RESTful APIs. G
 * HTTPS supported (self-signed certificate generator and installer included)
 * No runtime dependencies except Powershell 3.0 and .Net 4.5
 * IIS not needed
-* Will run on any Windows desktop or server
+* Will run on any Windows tablet, desktop or server
 
 Setup
 -----
@@ -37,7 +37,7 @@ A Handler is a PowerShell function or named script block that will service certa
 
 Routes
 ------
-A route is the text after the server name and optional port number, and before any query string in web browser address. For example in the address http://myserver.mydomain.com:8000/images/getimage?name=cat.jpg, the route is /images/getimage. Each Canister Handler is wired to a specific route. The route specification is a .Net regular Expression. Thus '^/' will match all routes. If multiple Handlers match the route specification, only the first will be executed. Thus the order of Handlers is significant. The best practice is to start with Handlers with most specific Route, with the last one handling '^/'.
+A route is the text after the server name and optional port number, and before any query string in web browser address. For example in the address http://myserver.mydomain.com:8000/images/getimage?name=cat.jpg, the route is /images/getimage. Each Canister Handler is wired to a specific route. The route specification is a PowerShell *-match* operator Regular Expression. Thus '^/' will match all routes. If multiple Handlers match the route specification, only the first will be executed. Thus the order of Handlers is significant. The best practice is to start with Handlers with most specific Route, with the last one handling '^/'.
 
 Methods
 -------
@@ -48,7 +48,7 @@ Passing Data In and Out
 Each Handler receives two parameters. At position 1 is [System.Net.HttpListenerRequest](http://msdn.microsoft.com/en-us/library/system.net.httplistenerrequest(v=vs.110).aspx) and at position 2 is the [System.Net.HttpListenerResponse](http://msdn.microsoft.com/en-us/library/system.net.httplistenerresponse(v=vs.110).aspx) object. The Request object can be used to extract the request and any data sent by the front end, and the Response object is used to send back any requested data to the front end. Canister extends these objects with the following conveniences:
 
     $request.GetBody()
-Gets the body of a POST or PUT request from the front end as a string. The handler must further process this string based on $request.Headers['ContentType'] value. For example when { $request.Headers['ContentType'] -match 'application/json' } then ConvertTo-JSON cmdlet should be used on the string.
+Gets the body of a POST or PUT request from the front end as a string. The handler must further process this string based on $request.Headers['ContentType'] value. For example when *{ $request.Headers['ContentType'] -match 'application/json' }* then *ConvertFrom-JSON* cmdlet should be used on the string. Similarly if the body are the contents of a HTML form with ContentType *'application/x-www-form-urlencoded'*, use *[System.Web.HttpUtility]:UrlDecode()* to read the form elements.
 
     $response.SendText($text, $contentType)
 Send the text to the front end and set the HTTP Content-Type header to $contentType. The default value for $contentType is application/json.
