@@ -1,0 +1,33 @@
+<!doctype html>
+<html ng-app>
+<head>
+ <title>Canister Filesystem Browser</title>
+ <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.0.1/angular.min.js"></script>
+  <style>.folder { color:red; }</style>
+ </head>
+
+<body ng-controller="browserCtrl">
+ <h3>Canister Filesystem Browser</h3>
+ <hr>
+  Browse Path:<br>
+ <input type="text" ng-model="path" ng-change="send(path)" style="width:800px" placeholder="c:\">
+ <br><br>
+ <div ng-repeat="file in fileList">
+    <a href="" ng-class="{folder:file.folder}" ng-disabled="!file.folder" ng-click="setPath(file.path)">{{file.name}}</a><br>
+ </div>
+
+ <script>
+	function browserCtrl($scope, $http) {
+		$scope.send = function(path) {
+			$http.post('/browser', path).success(function(data) {
+				$scope.fileList = data;
+			});
+		}
+		$scope.setPath = function(path) {
+			$scope.path = path;
+			$scope.send(path);
+		}
+	}
+ </script>
+</body>
+</html>
