@@ -59,6 +59,26 @@ Converts the object into Json by using ConvertTo-Json, and sends it with Content
     $response.SendFile($filename)
 Sends a file to the front end. $filename should be the complete path to the file such as c:\users\me\desktop\app.html.
 
+Example
+-------
+    # Dot source canister.ps1
+    . .\canister.ps1
+    
+    # Create functions that will be executed by the web app
+    function SayHello ($request, $response) {
+        # Get name of user from query string embedded within URL
+        # http://localhost:8000/sayhello?name=John
+        $userName = $request.QueryString['name']
+        $response.SendText("Hello $userName!")
+    }
+    
+    # Wire the functions to Canister
+    $handlers = @()
+    $handlers += @{route='^/sayhello$'; method='GET'; handler='SayHello'}
+    
+    # Start Canister!
+    Canister-Start -handlers $handlers -log Console
+    
 Canister is Single Threaded
 ---------------------------
 While a Handler is doing it's work, other requests from the same or other front ends must wait in line. Thus Handlers must be designed to finish as quickly as possible. Long running tasks should be created as an asynchronous task (PowerShell Job or [powershell].Invoke) by the Handler. The synchronous design of Canister allows the fastest response with least overhead, while letting Handlers create asynchronous tasks as needed.
