@@ -51,7 +51,10 @@ Each Handler receives two parameters. At position 1 is [System.Net.HttpListenerR
 Gets the body of a POST or PUT request from the front end as a string. The handler must further process this string based on $request.Headers['ContentType'] value. For example when *{ $request.Headers['ContentType'] -match 'application/json' }* then *ConvertFrom-JSON* cmdlet should be used on the string. Similarly if the body are the contents of a HTML form with ContentType *'application/x-www-form-urlencoded'*, use *[System.Web.HttpUtility]:UrlDecode()* to read the form elements.
 
     $response.SendText($text, $contentType)
-Send the text to the front end and set the HTTP Content-Type header to $contentType. The default value for $contentType is application/json.
+Send the text to the front end and set the HTTP Content-Type header to $contentType. The default value for $contentType is text/plain.
+
+    $response.SendJson($object)
+Converts the object into Json by using ConvertTo-Json, and sends it with ContentType set to 'application/json'.
 
     $response.SendFile($filename)
 Sends a file to the front end. $filename should be the complete path to the file such as c:\users\me\desktop\app.html.
