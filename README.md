@@ -67,7 +67,7 @@ Example
     # Create functions that will be executed by the web app
     function SayHello ($request, $response) {
         # Get name of user from query string embedded within URL
-        # http://localhost:8000/sayhello?name=John
+        # http://localhost:8000/sayhello?**name=John**
         $userName = $request.QueryString['name']
         $response.SendText("Hello $userName!")
     }
