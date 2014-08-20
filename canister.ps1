@@ -6,13 +6,26 @@
 #>
 
 # The following .Net 4.5 library is required to find correct mime type for file extensions
-try { [void][System.Reflection.Assembly]::LoadWithPartialName("System.Web") }
+try { Add-Type -AssemblyName System.Web -ErrorAction Stop }
 catch { throw 'Unable to start the web server. .Net 4.5 is required' }
 
 Update-TypeData -TypeName System.Net.HttpListenerResponse -MemberType ScriptMethod -MemberName SendText -Value {
-    param([string]$text, [string]$contentType = 'application/json')
+    param([string]$text, [string]$contentType = 'text/plain')
     $this.ContentType = $contentType
     $buffer = [System.Text.Encoding]::UTF8.GetBytes($text)
+    $this.ContentLength64 = $buffer.length
+    $this.OutputStream.Write($buffer, 0, $buffer.length)
+    $this.OutputStream.Close()
+}
+
+Update-TypeData -TypeName System.Net.HttpListenerResponse -MemberType ScriptMethod -MemberName SendJson -Value {
+    param($object, [string]$contentType = 'application/json')
+    $this.ContentType = $contentType
+    # ConvertTo-Json will not output array for single element array when input is sent on pipeline
+    # thus always provide data as argument
+    # Also there are a couple of open bugs in ConvertTo-Json in coding " and some other chars
+    # The workaround is -compress switch
+    $buffer = [System.Text.Encoding]::UTF8.GetBytes((ConvertTo-Json $object -Compress))
     $this.ContentLength64 = $buffer.length
     $this.OutputStream.Write($buffer, 0, $buffer.length)
     $this.OutputStream.Close()
@@ -27,6 +40,8 @@ Update-TypeData -TypeName System.Net.HttpListenerRequest -MemberType ScriptMetho
 
 Update-TypeData -TypeName System.Net.HttpListenerResponse -MemberType ScriptMethod -MemberName SendFile -Value {
     param([string]$fileName)
+    # Test-Path and Get-Content do not work with filenames with [ or ] characters; these need to be escaped
+    $filename = $fileName -replace '\[', '`[' -replace '\]','`]'
     if (Test-Path $fileName) {
         if ($fileName -match '\.(\w+)$') {
             $response.ContentType = [System.Web.MimeMapping]::GetMimeMapping($matches[0])
@@ -51,7 +66,7 @@ function Canister-Start {
         [Parameter(Mandatory=$false)][string]$logFile = ".\Canister.log"
     )
     write-host ''
-    write-host 'Canister v0.2'
+    write-host 'Canister v0.21'
     write-host ''
 
     if ($handlers.Count -eq 0) { throw 'WebServer failed to start: No handlers added' }
@@ -59,7 +74,7 @@ function Canister-Start {
 
     $listener = New-Object System.Net.HttpListener
     if ($https) { $prefix = "https://+:$strPort/" } else { $prefix = "http://+:$strPort/" }
-    $listener.Prefixes.Add($prefix) # Must exactly match the netsh command issued part of install procedure
+    $listener.Prefixes.Add($prefix)
     try { $listener.Start() }
     catch {
         if ($_.Exception.Message -match 'Access is denied' -or 
@@ -81,7 +96,7 @@ function Canister-Start {
             foreach ($handler in $handlers) {
                 if (!$handler.method) { $handler['method'] = 'GET' }
                 $route = $request.RawUrl.split('?')[0]
-                if ($request.HttpMethod.ToLower() -eq $handler.method.toLower() -and $route -match $handler.route) {
+                if ($request.HttpMethod -eq $handler.method -and $route -match $handler.route) {
                     $handlerFound = $true
                     & $handler.handler $request $response
                     break
