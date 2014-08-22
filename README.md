@@ -83,7 +83,7 @@ Example: Basic Web (File) Server
 --------------------------------
     $scriptPath = Split-Path -parent $MyInvocation.MyCommand.Definition
 
-    . $scriptPath\..\..\canister.ps1
+    . .\canister.ps1
     
     function Serve-File ($request, $response) {
         if ($request.RawUrl -eq '/') { $filename = '/index.html' }
