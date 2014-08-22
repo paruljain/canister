@@ -59,8 +59,8 @@ Converts the object into Json by using ConvertTo-Json, and sends it with Content
     $response.SendFile($filename)
 Sends a file to the front end. $filename should be the complete path to the file such as c:\users\me\desktop\app.html.
 
-Example
--------
+Example: Input from Query String
+--------------------------------
     # Dot source canister.ps1
     . .\canister.ps1
     
@@ -78,6 +78,24 @@ Example
     
     # Start Canister!
     Canister-Start -handlers $handlers -log Console
+    
+Example: Basic Web (File) Server
+--------------------------------
+    $scriptPath = Split-Path -parent $MyInvocation.MyCommand.Definition
+
+    . $scriptPath\..\..\canister.ps1
+    
+    function Serve-File ($request, $response) {
+        if ($request.RawUrl -eq '/') { $filename = '/index.html' }
+        else { $filename = $request.RawUrl }
+        $filename = $filename -replace '/', '\'
+        $response.SendFile($scriptPath + $filename)
+    }
+    
+    $handlers = @()
+    $handlers += @{route='^/'; handler='Serve-File'}
+    Canister-Start -handlers $handlers -log File
+
     
 Canister is Single Threaded
 ---------------------------
