@@ -40,21 +40,16 @@ Update-TypeData -TypeName System.Net.HttpListenerRequest -MemberType ScriptMetho
 
 Update-TypeData -TypeName System.Net.HttpListenerResponse -MemberType ScriptMethod -MemberName SendFile -Value {
     param([string]$fileName)
-    # Test-Path and Get-Content do not work with filenames with [ or ] characters; these need to be escaped
-    $filename = $fileName -replace '\[', '`[' -replace '\]','`]'
-    if (Test-Path $fileName) {
-        if ($fileName -match '\.(\w+)$') {
-            $response.ContentType = [System.Web.MimeMapping]::GetMimeMapping($matches[0])
-        }
-        $buffer = Get-Content $fileName -Encoding Byte -ReadCount 0
-        $response.ContentLength64 = $buffer.length
-        $output = $response.OutputStream
-        $output.Write($buffer, 0, $buffer.length)
-        $output.Close()
+    if ($fileName -match '\.(\w+)$') {
+        $this.ContentType = [System.Web.MimeMapping]::GetMimeMapping($matches[0])
     }
-    else {
-        $response.StatusCode = 404
-    }
+    try {
+        $fs = New-Object System.IO.FileStream $fileName, Open
+        $fs.CopyTo($this.OutputStream)
+        $this.OutputStream.Close()
+        $fs.Close()
+        $fs.Dispose()
+    } catch { $this.StatusCode = 404 }
 }
 
 function Canister-Start {
@@ -66,7 +61,7 @@ function Canister-Start {
         [Parameter(Mandatory=$false)][string]$logFile = ".\Canister.log"
     )
     write-host ''
-    write-host 'Canister v0.21'
+    write-host 'Canister v0.22'
     write-host ''
 
     if ($handlers.Count -eq 0) { throw 'WebServer failed to start: No handlers added' }
