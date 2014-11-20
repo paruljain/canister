@@ -4,9 +4,11 @@
     MIT License
 #>
 
+param([string]$serverName='localhost', [uint32]$port=8000, [switch]$ssl)
+
 $ErrorActionPreference = 'stop'
 
-function Add-SelfSignedCertificate ([string]$CommonName='Canister') {
+function Add-SelfSignedCertificate ([string]$CommonName='localhost') {
     $name = new-object -com "X509Enrollment.CX500DistinguishedName.1"
     $name.Encode("CN=$CommonName", 0)
 
@@ -41,7 +43,7 @@ function Add-SelfSignedCertificate ([string]$CommonName='Canister') {
     [Security.Cryptography.X509Certificates.X509Certificate2][Convert]::FromBase64String($certdata)
 }
 
-function Get-ServerCertificates {
+function Get-ServerCertificate {
     $store = New-Object System.Security.Cryptography.X509Certificates.X509Store("My","LocalMachine")
     $store.Open("ReadOnly")
     foreach ($cert in $store.Certificates) {
@@ -55,43 +57,46 @@ function Is-Admin {
         [System.Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
-function Canister-Setup {
-    'Canister network setup version 0.1'
-    ''
-    if (!(Is-Admin)) { 'Sorry you must run setup from an administratively privileged command prompt'; return }
-    [uint32]$port = Read-Host -Prompt 'What port will you be running Canister on? [8000]'
-    if (!$port) { $port = 8000 }
-    $portStr = $port.ToString()
-    [string]$ssl = Read-Host -Prompt 'Will you use HTTPS (in place of HTTP)? [Y/N]'
-    if ($ssl -notmatch '^[ynYN]$') { 'Sorry please answer Y or N only'; return }
+'Canister network setup version 0.21'
+''
+if (!(Is-Admin)) { 'Sorry you must run setup from an administratively privileged command prompt'; return }
 
-    "Executing: netsh http delete urlacl url=http://+:$portStr/"
-    & netsh http delete urlacl url=http://+:$portStr/ | Out-Null
-    "Executing: netsh http delete urlacl url=https://+:$portStr/"
-    & netsh http delete urlacl url=https://+:$portStr/ | Out-Null
+$portStr = $port.ToString()
 
-    if ($ssl -match 'n') {
-      "Executing: netsh http add urlacl url=http://+:$portStr/ user=BUILTIN\Users"
-      & netsh http add urlacl url=http://+:$portStr/ user=BUILTIN\Users
-    } else {
-        $cert = Get-ServerCertificates
-        If (!$cert) {
-            'Creating and adding a self-signed certificate'
-            $cert = Add-SelfSignedCertificate
-        } else { 'Existing server certificate will be used' }
-        $certThumbPrint = $cert.Thumbprint
-        $guid = '{' + [guid]::NewGuid().ToString() + '}'
-        "Executing: netsh http delete sslcert ipport=0.0.0.0:$portStr"
-        & netsh http delete sslcert ipport=0.0.0.0:$portStr | Out-Null
-        "Executing: netsh http add sslcert ipport=0.0.0.0:$portStr certhash=$certThumbPrint appid=$guid"
-        & netsh http add sslcert ipport=0.0.0.0:$portStr certhash=$certThumbPrint appid=$guid
-        "Executing: netsh http add urlacl url=https://+:$portStr/ user=BUILTIN\Users"
-        & netsh http add urlacl url=https://+:$portStr/ user=BUILTIN\Users
-    }
-    "Executing: netsh advfirewall firewall delete rule name=Canister Port $portStr"
-    & netsh advfirewall firewall delete rule name="Canister Port $portStr" | Out-Null
-    "Executing: netsh advfirewall firewall add rule name=Canister Port $portStr dir=in action=allow protocol=TCP localport=$portStr"
-    & netsh advfirewall firewall add rule name="Canister Port $portStr" dir=in action=allow protocol=TCP localport=$portStr
+"Executing: netsh http delete urlacl url=http://+:$portStr/"
+& netsh http delete urlacl url=http://+:$portStr/ | Out-Null
+
+"Executing: netsh http delete urlacl url=https://+:$portStr/"
+& netsh http delete urlacl url=https://+:$portStr/ | Out-Null
+
+if (!$ssl) {
+
+    "Executing: netsh http add urlacl url=http://+:$portStr/ user=BUILTIN\Users"
+    & netsh http add urlacl url=http://+:$portStr/ user=BUILTIN\Users
+
+} else {
+    $cert = Get-ServerCertificate
+
+    If (!$cert) {
+        'Creating and adding a self-signed certificate'
+        $cert = Add-SelfSignedCertificate -CommonName $serverName
+    } else { 'Existing server certificate will be used' }
+
+    $certThumbPrint = $cert.Thumbprint
+    $guid = '{' + [guid]::NewGuid().ToString() + '}'
+
+    "Executing: netsh http delete sslcert ipport=0.0.0.0:$portStr"
+    & netsh http delete sslcert ipport=0.0.0.0:$portStr | Out-Null
+
+    "Executing: netsh http add sslcert ipport=0.0.0.0:$portStr certhash=$certThumbPrint appid=$guid"
+    & netsh http add sslcert ipport=0.0.0.0:$portStr certhash=$certThumbPrint appid=$guid
+
+    "Executing: netsh http add urlacl url=https://+:$portStr/ user=BUILTIN\Users"
+    & netsh http add urlacl url=https://+:$portStr/ user=BUILTIN\Users
 }
 
-Canister-Setup
+"Executing: netsh advfirewall firewall delete rule name=Canister Port $portStr"
+& netsh advfirewall firewall delete rule name="Canister Port $portStr" | Out-Null
+
+"Executing: netsh advfirewall firewall add rule name=Canister Port $portStr dir=in action=allow protocol=TCP localport=$portStr"
+& netsh advfirewall firewall add rule name="Canister Port $portStr" dir=in action=allow protocol=TCP localport=$portStr
