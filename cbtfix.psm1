@@ -230,13 +230,14 @@ $spec.ChangeTrackingEnabled = $false
 function Disable-CBTAsync {
     # Must pipe VM objects through Ready-VM before piping to this function
     Process {
+        $vmObject = $_
         try {
-            $_.task = Get-VIObjectByVIView $_.vm.ExtensionData.ReconfigVM_Task($spec)
-            $_.taskStage = 1
+            $vmObject.task = Get-VIObjectByVIView $vmObject.vm.ExtensionData.ReconfigVM_Task($spec)
+            $vmObject.taskStage = 1
         } catch {
-            $_.errorMsg = $error[0].toString()
+            $vmObject.errorMsg = $error[0].toString()
         }
-        $_
+        $vmObject
     }
 }
 
@@ -278,27 +279,29 @@ function Remove-Load {
 function Create-SnapAsync {
     # Must pipe VM objects through Ready-VM before piping to this function
     Process {
+        $vmObject = $_
         try {
-            $_.task = $_.vm | New-Snapshot -Name 'Disable CBT' -RunAsync
-            $_.taskStage = 2
+            $vmObject.task = $vmObject.vm | New-Snapshot -Name 'Disable CBT' -RunAsync
+            $vmObject.taskStage = 2
         } catch {
-            $_.errorMsg = $error[0].toString()
+            $vmObject.errorMsg = $error[0].toString()
         }
-        $_
+        $vmObject
     }
 }
 
 function Remove-SnapAsync {
     # Must pipe VM objects through Ready-VM before piping to this function
     Process {
+        $vmObject = $_
         try {
-            $snap = Get-Snapshot -VM $_.vm -Name 'Disable CBT'
-            $_.task = $snap | Remove-Snapshot -confirm:$false -RunAsync
-            $_.taskStage = 3
+            $snap = Get-Snapshot -VM $vmObject.vm -Name 'Disable CBT'
+            $vmObject.task = $snap | Remove-Snapshot -confirm:$false -RunAsync
+            $vmObject.taskStage = 3
         } catch {
-            $_.errorMsg = $error[0].toString()
+            $vmObject.errorMsg = $error[0].toString()
         }
-        $_
+        $vmObject
     }
 }
 
