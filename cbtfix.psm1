@@ -375,7 +375,9 @@ function Apply-Fix ($vmList, $maxLoad = 5000) {
             
             # Remove any errored out VMs from load tracker dsLoad
             $errors = @($vms | Update-TaskStatus | where { $_.errorMsg } | Remove-Load).Count
-            write-host "Tasks on $errors VMs failed. Continuing processing"
+            if ($errors.Count -gt 0) {
+            	write-host "$errors VMs failed. Continuing processing"
+            }
 
             # Remove completed VMs from load tracker
             $success = @($vms | where { $_.task.State -eq 'Success' -and $_.taskStage -eq 3 -and !$_.errorMsg } | % { $_.taskStage = 4; $_ } | Remove-Load).Count
