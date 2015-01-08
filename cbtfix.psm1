@@ -94,7 +94,7 @@ Performance (Load) Concerns
  
 * vCenter
     You can limit the maximum number of outstanding active tasks ordered by the script to keep vCenter from
-    choking. The downside is that fewer simultaneously tasks means longer time to remediation. You can vary
+    choking. The downside is that fewer simultaneous tasks means longer time to remediation. You can vary
     the number of parallel tasks for each run to strike a balance between vCenter load and average time taken
     to fix each virtual machine. The default setting is 20 tasks
 
