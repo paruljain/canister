@@ -1,4 +1,3 @@
-
 <#
     vSphere 5.0 workaround for CBT bug when VMDK size is > 127GB
     Deploys the workaround in a throttled manner so as to not overwhelm ESX storage
@@ -25,6 +24,21 @@ Pre-requisities
 
 * Administrative access to all resources in the vSphere cluster
 
+What is PowerShell?
+-------------------
+
+General purpose scripting language for Windows that replaces batch files and visual basic (VBS) scripts. Powershell
+comes standard with Windows 7, 2008, and 2012 operating systems. PowerShell can directly use the entire .Net library
+which allows it to be used as a general purpose programming language for business apps in addition to a scripting
+platform for infrastructure automation
+
+
+What is PowerCLI?
+-----------------
+PowerCLI is a library for PowerShell from vmware that makes it easy to write PowerShell scripts to control
+vSphere and vCenter. PowerCLI is much more advanced that vCenter Orchestrator (vCO) in terms of features
+supported and easy of use.
+
 Setup
 -----
 
@@ -36,11 +50,11 @@ Setup
 * Create a folder for the script and copy the script there. For purpose of this document
     we will assume that the folder where script is located is C:\myFolder
 
-* Start PowerShell
+* From command prompt, start PowerShell
 
     C:\myFolder> powershell
 
-* Load the fix module (notice the PowerShell prompt is prefixed with PS)
+* Load the script (notice the PowerShell prompt is prefixed with PS)
 
     PS C:\myFolder> import-module .\cbtfix.psm1
 
@@ -49,14 +63,15 @@ Setup
 * Connect to vCenter server managing the cluster(s) where you want to apply the fix, Note
     that the username should be an administrator for resources in the cluster
     
-    PS C:\myFolder> Connect-VIServer -server myVCserver.nam.nsroot.net -username aa12345 -password mypass
+    PS C:\myFolder> Connect-VIServer -server myVCserver.nam.nsroot.net -user aa12345 -password mypass
 
     This may take upto a minute. Ignore any warning messages. If you fail to connect, please troubleshoot with
     vmware support
 
 The Fix
 -------
-For all VMs that have at least one VMDK greater than 127GB size, the following must occur:
+For all VMs that have (1) CBT turned on and (2) at least one VMDK greater than 127GB size, the
+following must occur:
     
     Step 1: Disable change block tracking (CBT). This is a virtual machine reconfigure operation
     Step 2: Take a snapshot of the virtual machine
@@ -67,7 +82,7 @@ Approach
 
 Step 1, turning off CBT, is done sequentially, one VM at a time, on identified virtual machines.
 Step 2, creating snapshot, is done in parallel on several virtual machines at a time. The number of
-parallel snap operations in throttled to prevent overloading of ESX storage (datastore). The load
+parallel snap operations is throttled to prevent overloading of ESX storage (datastore). The load
 threshold is user configurable with the maxLoad parameter. The default value of maxLoad is 5000 (GB).
 
 The maxLoad parameter specifies the maximum combined VMDK GB per datastore under create or remove
@@ -117,6 +132,49 @@ Examine the log.csv created at the end of the run. Here is the meaning of the Ta
 
 Advanced Testing and Running
 ----------------------------
+Get a list of affected VMs in a cluster:
+
+	PS C:\myFolder> Get-MyVMs -clusterName myCluster | % { $_.Name }
+
+Affected virtual machines are those that have (1) CBT turned on and (2) have at least one
+	VMDK that is > 127GB
+
+Send the list to a text file:
+	
+	PS C:\myFolder> Get-MyVMs -clusterName myCluster | % { $_.Name } > vmlist.txt
+
+Import list of VM names to be fixed from a text file. The file should have one name per line and there should
+	not be any header
+
+	PS C:\myFolder>	$vmList = Get-Content .\vmlist.txt | % { Get-VM -Name $_ }
+
+Check imported list:
+
+	PS C:\myFolder>	$vmList
+
+Apply fix on first 10 of the imported list:
+
+	PS C:\myFolder> Apply-Fix -vmList ($vmList | select -first 10) -maxLoad 5000
+
+Apply fix on all of the imported list:
+
+	PS C:\myFolder> Apply-Fix -vmList $vmList -maxLoad 5000
+
+Apply fix on imported list where VM name begins with 'dev':
+
+	PS C:\myFolder> Apply-Fix -vmList ($vmList | where { $_.Name -match '^dev' }) -maxLoad 5000
+
+Apply fix on imported list where VM name ends with 'dev':
+
+	PS C:\myFolder> Apply-Fix -vmList ($vmList | where { $_.Name -match 'dev$' }) -maxLoad 5000
+
+Apply fix on imported list where VM name has 'dev':
+
+	PS C:\myFolder> Apply-Fix -vmList ($vmList | where { $_.Name -match 'dev' }) -maxLoad 5000
+
+Notice that the PowerShell -match operator takes a regular expression on the right side. It is possible
+to contruct complex selection critera with some knowledge of regular expressions.
+
 Here is how to apply fix to affected VMs that have "development" in the name, 10 VMs at a time:
 
     PS C:\myFolder> Apply-Fix -vmList (Get-MyVMs -clusterName myCluster | where { $_.Name -match 'development' } | select -first 10) -maxLoad 5000
