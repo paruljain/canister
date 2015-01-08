@@ -1,6 +1,6 @@
 <#
     vSphere 5.0 workaround for CBT bug when VMDK size is > 127GB
-    Deploys the workaround in a throttled manner so as to not overwhelm ESX storage
+    Deploys the workaround in a throttled manner so as to not overwhelm vCenter or Backup
     
     Parul Jain
     CATE Storage and Backup Engineering
@@ -15,29 +15,27 @@ Pre-requisities
 * One or more vCenter instances managing the clusters that need to be fixed
 
 * Windows desktop or server (here after referred to as "workstation") with:
+
     - PowerCLI: any version less than 3 years old; latest recommended
         To check PowerCLI version start PowerCLI from start menu and look at the title bar
+
     - PowerShell 2.0 or better
         To check PowerShell version run the following from command prompt:
             c:\> powershell get-host
+
     - Administrative access to enable running of PowerShell scripts
 
 * Administrative access to all resources in the vSphere cluster
 
 What is PowerShell?
 -------------------
-
 General purpose scripting language for Windows that replaces batch files and visual basic (VBS) scripts. Powershell
-comes standard with Windows 7, 2008, and 2012 operating systems. PowerShell can directly use the entire .Net library
-which allows it to be used as a general purpose programming language for business apps in addition to a scripting
-platform for infrastructure automation
-
+comes standard with Windows 7, 2008, and 2012 operating systems
 
 What is PowerCLI?
 -----------------
 PowerCLI is a library for PowerShell from vmware that makes it easy to write PowerShell scripts to control
-vSphere and vCenter. PowerCLI is much more advanced that vCenter Orchestrator (vCO) in terms of features
-supported and easy of use.
+vSphere and vCenter
 
 Setup
 -----
@@ -56,9 +54,7 @@ Setup
 
 * Load the script (notice the PowerShell prompt is prefixed with PS)
 
-    PS C:\myFolder> import-module .\cbtfix.psm1
-
-    Ignore warning message
+    PS C:\myFolder> import-module .\cbtfix.psm1 -DisableNameChecking
 
 * Connect to vCenter server managing the cluster(s) where you want to apply the fix, Note
     that the username should be an administrator for resources in the cluster
@@ -79,112 +75,77 @@ following must occur:
 
 Approach
 --------
+As a one time task, Virtual machines in the specified cluster that match the above criteria are listed
+and stored into a file named inventory.csv in the folder where this script is located.
 
-Step 1, turning off CBT, is done sequentially, one VM at a time, on identified virtual machines.
-Step 2, creating snapshot, is done in parallel on several virtual machines at a time. The number of
-parallel snap operations is throttled to prevent overloading of ESX storage (datastore). The load
-threshold is user configurable with the maxLoad parameter. The default value of maxLoad is 5000 (GB).
+There after the Apply-Fix command is issued. The command reads virtual machines to fix from the inventory.
+As machines get fixed, the inventory is updated so that machines do not get remediated repeatedly
+across runs.
 
-The maxLoad parameter specifies the maximum combined VMDK GB per datastore under create or remove
-snapshot operation at any point in time. To understand this better, here is an example. Suppose there
-are 2 virtual machines (VM), A and B, needing the fix. VM A has two VMDKs AV1 and AV2 on datastores D1
-and D2 respectively. AV1 is 10GB and AV2 is 5GB. VM B also two VMDKs BV1 and BV2 on datastores D1 and
-D2 respectively. BV1 is 5 GB and BV2 is 1 GB.
+For each run of Apply-Fix, you can specify maximum number of simultaneous tasks outstanding against vCenter,
+as well as the number of virtual machines to process. Because inventory is updated after each run, Apply-Fix
+will pick the next set of virtual machines to fix on each run
 
-If a create snap operation is executed on A and B simultaneously, a total of AV1 + BV1 = 15GB will be
-impacted on datastore D1, and a total of 6GB will be impacted on D2.
+Performance (Load) Concerns
+---------------------------
+* Backup
+    The fix will force the next backup to be a full backup. By running small batches of fix every day, you can
+    limit the backup load that night. The default setting is 100 virtual machines per run
+ 
+* vCenter
+    You can limit the maximum number of outstanding active tasks ordered by the script to keep vCenter from
+    choking. The downside is that fewer simultaneously tasks means longer time to remediation. You can vary
+    the number of parallel tasks for each run to strike a balance between vCenter load and average time taken
+    to fix each virtual machine. The default setting is 20 tasks
 
-    * If maxLoad is set to 4 GB, the create/delete snap operation will not run
-    * If maxLoad is set to 5 GB, the create/delete snap operation will only run on B
-    * If maxLoad is set to 10GB, the create/delete snap operation will run on A and B sequentially
-    * If maxLoad is set to 15GB or higher, the create/delete snap operation will run on A and B in parallel
+* vSphere storage (datastores)
+    Per vmware, the only performace concern related to snapshots is that increasing number of snapshots
+    for a virtual machine reduce performance of that virtual machine. This is not applicable for this
+    fix as only one snapshot is being created
 
-There are no best practices from vmware related to how many simultaneous snap operations are safe, or how
-many snaps can simultaneously exist per datastore safetly. The only guideline is to minimize the number of
-snapshots per VM, which is not applicable in this situation.
+Inventory.csv
+-------------
 
-The Operator running this script can adjust the maxLoad parameter based on their comfort level while balancing
-with speed of remediation. A lower number will reduce parallel tasks and thus increase time to deploy the
-fix.
+Here is the meaning of the TaskStep:
 
-Testing with one Virtual Machine
---------------------------------
-Before you run the fix for all virtual machines in the cluster, it is a good idea to test the fix
-against one or more low risk virtual machines. This will verify the runtime environment, connection
-to vCenter and expose any bugs. Testing is also helpful in learning how this fairly sophisticated
-script works. Issue the following commands on the PowerShell prompt opened during Setup phase described
-above, after connecting to vCenter server.
+    -1: Indicates that there was an error. See ErrorMsg for reason. The ErrorMsg starts with a numeric code which is
+        the step number at which the error occured
 
-    PS C:\myFolder> test -vmName someVirtualMachineName
+    0: THis virtual machine is yet to be processed
 
-Examine the log.csv created at the end of the run. Here is the meaning of the TaskStage column:
+    1: Task to disable CBT was submitted to vCenter
 
-* TaskStage = 0: Indicates that Step 1, turning off Changed Block Tracking, failed. See ErrorMessage for reason
+    2: Task to disable CBT completed successfully
 
-* TaskStage = 1: Indicates that Change Block Tracking (CBT) was turned off successfully, but no subsequent tasks
-    (create and remove snaps) were completed
+    3: Task to create snapshot was submitted
 
-* TaskStage = 2: Indicates that CBT was turned off, and Create Snap task was submitted to vCenter
+    4: Task to create snapshot completed successfully
 
-* TaskStage = 3: Indicates that CBT was turned off, snapshot was created, and Remove Snap task was submitted to vCenter
+    5: Task to remove snapshot was submitted
 
-* TaskStage = 4: Indicates all tasks were completed successfully. Fix was deployed successfully
+    6: Task to remove snapshot completed successfully. Fix complete
 
-Advanced Testing and Running
-----------------------------
-Get a list of affected VMs in a cluster:
+Deploying the Fix
+-----------------
+Use the following commands on the PowerShell prompt started in the Setup section above after you are connected to
+vCenter.
 
-	PS C:\myFolder> Get-MyVMs -clusterName myCluster | % { $_.Name }
+Step 1: Create an inventory of impacted virtual machines in the cluster (one time task):
 
-Affected virtual machines are those that have (1) CBT turned on and (2) have at least one
-	VMDK that is > 127GB
+	PS C:\myFolder> Get-ImpactedVMs -clusterName myCluster | Ready-VM | Save-Inventory
 
-Send the list to a text file:
-	
-	PS C:\myFolder> Get-MyVMs -clusterName myCluster | % { $_.Name } > vmlist.txt
+Step 2: Deploy the fix to a certain count of machines. Repeat this command every day
 
-Import list of VM names to be fixed from a text file. The file should have one name per line and there should
-	not be any header
+    PS C:\myFolder> Apply-Fix -parallelTasks 20 -count 100
 
-	PS C:\myFolder>	$vmList = Get-Content .\vmlist.txt | % { Get-VM -Name $_ }
+After the command completes, examine the inventory.csv file for any errors
 
-Check imported list:
-
-	PS C:\myFolder>	$vmList
-
-Apply fix on first 10 of the imported list:
-
-	PS C:\myFolder> Apply-Fix -vmList ($vmList | select -first 10) -maxLoad 5000
-
-Apply fix on all of the imported list:
-
-	PS C:\myFolder> Apply-Fix -vmList $vmList -maxLoad 5000
-
-Apply fix on imported list where VM name begins with 'dev':
-
-	PS C:\myFolder> Apply-Fix -vmList ($vmList | where { $_.Name -match '^dev' }) -maxLoad 5000
-
-Apply fix on imported list where VM name ends with 'dev':
-
-	PS C:\myFolder> Apply-Fix -vmList ($vmList | where { $_.Name -match 'dev$' }) -maxLoad 5000
-
-Apply fix on imported list where VM name has 'dev':
-
-	PS C:\myFolder> Apply-Fix -vmList ($vmList | where { $_.Name -match 'dev' }) -maxLoad 5000
-
-Notice that the PowerShell -match operator takes a regular expression on the right side. It is possible
-to contruct complex selection critera with some knowledge of regular expressions.
-
-Here is how to apply fix to affected VMs that have "development" in the name, 10 VMs at a time:
-
-    PS C:\myFolder> Apply-Fix -vmList (Get-MyVMs -clusterName myCluster | where { $_.Name -match 'development' } | select -first 10) -maxLoad 5000
-
-Here is how to apply the fix to affected VMs, 100 VMs at a time:
-    
-    PS C:\myFolder> Apply-Fix -vmList (Get-MyVMs -clusterName myCluster | select -first 100) -maxLoad 5000
-
-Note that when you run the above commands again, the next set of affected VMs will be processed. This is because Get-MyVMs
-only picks VMs that have CBT enabled, and Step 1 in the fix is to disable CBT.
+Notes
+-----
+* The progress bar indicates overall remediation, not this run's progress
+* Do NOT open inventory.csv with Excel while the script is running. Excel will block access to the file from the
+    script causing the script to fail. It is safe to open this file with Notepad while the script is running to
+    track progress if required
 
 #>
 
@@ -196,7 +157,7 @@ if ( (Get-PSSnapin -Name vmware.vimautomation.core -ErrorAction SilentlyContinue
 $ErrorActionPreference = 'Stop'
 $scriptPath = Split-Path -parent $MyInvocation.MyCommand.Definition
 
-function Get-MyVMs ([string]$clusterName) {
+function Get-ImpactedVMs ([string]$clusterName) {
     # Logic to select VMs that need to be processed
     # It can be any logic that outputs one or more VM objects
     foreach ($vm in @(Get-Cluster $clusterName | Get-VM)) {
@@ -214,13 +175,13 @@ function Get-MyVMs ([string]$clusterName) {
 function Ready-VM {
     # Gets VMs ready for processing by this script
     Process {
-        $dsMap = @{}
-        foreach ($disk in @($_ | Get-HardDisk)) {
-            #write-host $disk
-            $dsName = (Get-VIObjectByVIView $disk.ExtensionData.Backing.Datastore).Name
-            $dsMap[$dsName] += $disk.CapacityGB
-        }
-        @{vm = $_; dsMap = $dsMap; errorMsg = $null; task = $null; taskStage = 0 }
+        $vmObject = '' | select vm, VMName, errorMsg, taskStep, task
+        $vmObject.vm = $_
+        $vmObject.VMName = $_.Name
+        $vmObject.errorMsg = $null
+        $vmObject.taskStep = 0
+        $vmObject.task = $null
+        $vmObject
     }
 }
 
@@ -233,46 +194,13 @@ function Disable-CBTAsync {
         $vmObject = $_
         try {
             $vmObject.task = Get-VIObjectByVIView $vmObject.vm.ExtensionData.ReconfigVM_Task($spec)
-            $vmObject.taskStage = 1
+            $vmObject.taskStep++
         } catch {
-            $vmObject.errorMsg = $error[0].toString()
+            #throw $_
+            $vmObject.errorMsg = $vmObject.taskStep.toString() + ':' + $_.toString()
+            $vmObject.taskStep = -1
         }
         $vmObject
-    }
-}
-
-$dsLoad = @{}
-
-function Add-Load ($maxLoad = 5000) { # specifiy maxLoad as max GB under snap per datastore
-    # Must pipe VM objects through Ready-VM before piping to this function
-    # Filters out VMs that will cause excessive load on datastore
-    # Those that are sent out are added to dsLoad hashtable that tracks load by datastore
-    Process {
-        $goodToGo = $true
-        foreach ($datastore in $_.dsMap.Keys) {
-            if (!$dsLoad.ContainsKey($datastore)) { $dsLoad.Add($datastore, 0) }
-            if (($dsLoad[$datastore] + $_.dsMap[$datastore]) -gt $maxLoad) { $goodToGo = $false; break }
-        }
-        if ($goodToGo) {
-            foreach ($datastore in $_.dsMap.Keys) {
-                $dsLoad[$datastore] += $_.dsMap[$datastore]
-            }
-            $_
-        }
-    }
-}
-
-function Remove-Load {
-    # Must pipe VM objects through Ready-VM before piping to this function
-    # Removes load from dsLoad load tracker
-    Process {
-        foreach ($datastore in $_.dsMap.Keys) {
-            if ($dsLoad.ContainsKey($datastore)) {
-                $dsLoad[$datastore] -= $_.dsMap[$datastore]
-                if ($dsLoad[$datastore] -lt 0) { $dsLoad[$datastore] = 0 }
-            }
-        }
-        $_
     }
 }
 
@@ -282,9 +210,10 @@ function Create-SnapAsync {
         $vmObject = $_
         try {
             $vmObject.task = $vmObject.vm | New-Snapshot -Name 'Disable CBT' -RunAsync
-            $vmObject.taskStage = 2
+            $vmObject.taskStep++
         } catch {
-            $vmObject.errorMsg = $error[0].toString()
+            $vmObject.errorMsg = $vmObject.taskStep.toString() + ':' + $_.toString()
+            $vmObject.taskStep = -1
         }
         $vmObject
     }
@@ -297,9 +226,10 @@ function Remove-SnapAsync {
         try {
             $snap = Get-Snapshot -VM $vmObject.vm -Name 'Disable CBT'
             $vmObject.task = $snap | Remove-Snapshot -confirm:$false -RunAsync
-            $vmObject.taskStage = 3
+            $vmObject.taskStep++
         } catch {
-            $vmObject.errorMsg = $error[0].toString()
+            $vmObject.errorMsg = $vmObject.taskStep.toString() + ':' + $_.toString()
+            $vmObject.taskStep = -1
         }
         $vmObject
     }
@@ -309,90 +239,90 @@ function Update-TaskStatus {
     # Must pipe VM objects through Ready-VM before piping to this function
     Process {
         $vmObject = $_
-        if ($vmObject.task -ne $null ) {
-            try {
-                $vmObject.task = Get-Task -Id $vmObject.task.Id
-                if ($vmObject.task.State -notmatch 'Running|Success') {
-                    $vmObject.errorMsg = $vmObject.task.State
+        if ($vmObject.task -ne $null) {
+            if ($vmObject.task.State -ne 'Success') {
+                try {
+                    $vmObject.task = Get-Task -Id $vmObject.task.Id
+                    if ($vmObject.task.State -notmatch 'Running|Success') {
+                        $vmObject.errorMsg = $vmObject.taskStep.toString() + ':' + $vmObject.task.State
+                        $vmObject.taskStep = -1
+                    } elseif ($vmObject.task.State -eq 'Success') { $vmObject.taskStep++ }
+                } catch {
+                    $vmObject.errorMsg = $vmObject.taskStep.toString() + ':' + $_.toString()
+                    $vmObject.taskStep = -1
                 }
-            } catch {
-                $vmObject.errorMsg = 'Unable to find task id ' + $vmObject.task.value + ' on vCenter'
             }
         }
         $vmObject
     }
 }
 
-function Export-Log {
-    # Writes a neat CSV log
-    Begin { $log = @() }
-    Process {
-        $logEntry = '' | select VM, TaskStage, ErrorMessage
-        $logEntry.VM = $_.vm.Name
-        $logEntry.TaskStage = $_.taskStage
-        $logEntry.ErrorMessage = $_.errorMsg
-        $log += $logEntry
+function Apply-Fix ($parallelTasks = 20, $count = 100) {
+    $vms = @(Load-Inventory)
+
+    $processedVMCount = 0
+    $runningTaskCount = 0
+    while ($processedVMCount -lt $count) {
+            
+        $erroredVMCount = @($vms | where { $_.taskStep -eq -1 }).Count
+        $completedVMCount = @($vms | where { $_.taskStep -eq 6 }).Count
+        $runningTaskCount =  @($vms | where { $_.task.State -eq 'Running' }).Count
+
+        $startedTaskCount = @($vms | where { $_.taskStep -eq 0 } | select -first ($parallelTasks - $runningTaskCount) | Disable-CBTAsync).Count
+        if ($runningTaskCount -eq 0 -and $startedTaskCount -eq 0) { break }
+
+        $processedVMCount += $startedTaskCount
+        Write-Progress -Activity 'Applying Fix' -status ('Processed VMs in this run: ' + $processedVMCount.toString()) -percentComplete ($completedVMCount/$vms.Count*100)
+
+        $vms | Save-Inventory
+        
+        Start-Sleep 10 #seconds
+        
+        $vms | where { $_.taskStep -ne -1 } | Update-TaskStatus | where { $_.taskStep -eq 2 } | Create-SnapAsync | Out-Null
+        $vms | Save-Inventory
+
+        Start-Sleep 10
+
+        $vms | where { $_.taskStep -ne -1 } | Update-TaskStatus | where { $_.taskStep -eq 4 } | Remove-SnapAsync | Out-Null
+        $vms | Save-Inventory
+            
+        Start-Sleep 10
     }
-    End {
-        $log | Export-Csv -NoTypeInformation "$scriptPath\log.csv"
-        write-host "Log exported to $scriptPath\log.csv"
-    }
+    $vms | where { $_.taskStep -ne -1 } | Update-TaskStatus | Save-Inventory
+    write-host 'Done'
 }
 
-function Apply-Fix ($vmList, $maxLoad = 5000) {
-    Begin { $dsLoad.Clear() }
+function Save-Inventory {
+    Begin { $export = @() }
     Process {
-        $vms = @(@($vmList) | Ready-VM)
-        # Make sure that maxLoad is large enough to process largest VMDK
-        $largestSize = 0
-        foreach ($vm in $vms) {
-            foreach ($key in @($vm.dsMap.Keys)) {
-                if ($vm.dsMap[$key] -gt $largestSize) { $largestSize = $vm.dsMap[$key] }
-            }
-        }
-        if ($largestSize -gt $maxLoad) {
-            throw "MaxLoad setting is too low to process all virtual machines. It should be at least $largestSize. 10x of this value is recommended for adequate parallel processing"
-        }
-
-        write-host ('Processing ' + $vms.Count + ' virtual machines')
-        $processed = 0
-        while ($processed -lt $vms.Count) {
-            
-            $cbtDisabling = @($vms | where { $_.taskStage -eq 0 } | Add-Load -maxLoad $maxLoad | Disable-CBTAsync).Count
-            write-host "Started $cbtDisabling VM reconfigure (disable CBT) tasks"
-
-            Start-Sleep 10 #seconds
-
-            $snapping = @($vms | Update-TaskStatus | where { $_.task.State -eq 'Success' -and $_.taskStage -eq 1 -and !$_.errorMsg } | Create-SnapAsync).Count
-            write-host "Started $snapping create snap tasks"
-            
-            Start-Sleep 10
-            
-            $unSnaping = @($vms | Update-TaskStatus | where { $_.task.State -eq 'Success' -and $_.taskStage -eq 2 -and !$_.errorMsg } | Remove-SnapAsync).Count
-            write-host "Started $unSnaping remove snap tasks"
-            
-            Start-Sleep 10
-            
-            # Remove any errored out VMs from load tracker dsLoad
-            $errors = @($vms | Update-TaskStatus | where { $_.errorMsg } | Remove-Load).Count
-            if ($errors.Count -gt 0) {
-            	write-host "$errors VMs failed. Continuing processing"
-            }
-
-            # Remove completed VMs from load tracker
-            $success = @($vms | where { $_.task.State -eq 'Success' -and $_.taskStage -eq 3 -and !$_.errorMsg } | % { $_.taskStage = 4; $_ } | Remove-Load).Count
-            write-host "$success VMs finished processing successfully. Continuing processing"
-
-            $processed = $errors + $success
-        }
-
-        $vms | Export-Log
-        write-host 'Done'
+        $exportObj = '' | select VMName, TaskStep, ErrorMsg
+        $exportObj.VMName = $_.vm.Name
+        $exportObj.TaskStep = $_.taskStep
+        $exportObj.ErrorMsg = $_.errorMsg
+        $export += $exportObj
     }
+    End { $export | Export-Csv -NoTypeInformation "$scriptPath\inventory.csv" }
 }
 
-function Test ([string]$vmName, $maxLoad = 5000) {
-    # For testing the script with one VM
-    $vm = Get-VM -Name $vmName
-    Apply-Fix -vmList $vm -maxLoad $maxLoad
+function Load-Inventory {
+    if (!(Test-Path "$scriptPath\inventory.csv")) {
+        throw 'Inventory.csv not found in script folder. Did you Save-Inventory?'
+    }
+    $inventory = Import-Csv "$scriptPath\inventory.csv"
+    
+    $i = 1
+    $inventory | % {
+        $vmObject = $_
+        Write-Progress -Activity 'Loading Inventory' -status ('Loading ' + $vmObject.VMName) -percentComplete ($i/$inventory.Count*100)
+
+        try {
+            $vm = Get-VM -Name $vmObject.VMName 
+            $vmObject | Add-Member -MemberType NoteProperty -Name vm -Value $vm
+            $vmObject | Add-Member -MemberType NoteProperty -Name task -Value $null
+            $vmObject.taskStep = [int]$vmObject.taskStep
+            $vmObject # return to caller
+        }
+        catch { write-host 'VM ' + $vmObject.VMName + ' in inventory was not found on vCenter. It will be deleted from inventory' }
+        $i++
+    }
 }
