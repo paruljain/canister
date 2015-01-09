@@ -5,7 +5,7 @@
     Parul Jain
     CATE Storage and Backup Engineering
     parul.k.jain@citi.com
-    Version 1.4
+    Version 1.5
 
 Pre-requisities
 ---------------
@@ -258,6 +258,8 @@ function Update-TaskStatus {
 }
 
 function Apply-Fix ($parallelTasks = 20, $count = 100) {
+    if ($parallelTasks -gt $count) { $parallelTasks = $count }
+    
     $vms = @(Load-Inventory)
 
     $processedVMCount = 0
